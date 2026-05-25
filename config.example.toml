@@ -1,0 +1,20 @@
+[watcher]
+url = "https://www.pkobp.pl/klient-indywidualny/aplikacja-iko-ipko/kantor-internetowy-mobilny-24h"
+currency = "USD"
+rate_type = "sell"
+condition = "above_or_equal"
+target_rate = 3.60
+state_file = "state/state.json"
+log_file = "logs/rate_watcher.log"
+dry_run = true
+
+[alerts]
+min_minutes_between_alerts = 0
+send_alert_when_condition_recovers = true
+
+[local_sound]
+enabled = false
+mode = "message_beep"
+frequency = 1000
+duration_ms = 700
+wav_file = ""

@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+config.toml
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+logs/*
+!logs/.gitkeep
+state/*
+!state/.gitkeep
+dist/
+build/
+*.egg-info/

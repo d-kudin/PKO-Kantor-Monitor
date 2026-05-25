@@ -1,0 +1,5 @@
+Kantor internetowy
+Tabela kursow walut
+Waluta Kupno Sprzedaz
+USD 3,7500 3,7900
+EUR 4,2500 4,3100
