@@ -28,6 +28,27 @@ def test_play_local_sound_returns_disabled_message() -> None:
     assert result.message == "Local sound is disabled in config.toml."
 
 
+def test_play_local_sound_disabled_does_not_load_winsound(monkeypatch) -> None:
+    def fail_if_called():
+        raise AssertionError("winsound should not be loaded when local sound is disabled")
+
+    monkeypatch.setattr("pko_rate_watcher.sound_notifier._load_winsound", fail_if_called)
+
+    result = play_local_sound(LocalSoundConfig(enabled=False))
+
+    assert result.success is False
+    assert result.message == "Local sound is disabled in config.toml."
+
+
+def test_play_local_sound_enabled_without_winsound_is_readable_error(monkeypatch) -> None:
+    monkeypatch.setattr("pko_rate_watcher.sound_notifier._load_winsound", lambda: None)
+
+    result = play_local_sound(LocalSoundConfig(enabled=True, mode="message_beep"))
+
+    assert result.success is False
+    assert result.message == "Local sound is available only on Windows."
+
+
 def test_play_local_sound_message_beep_uses_windows_message_beep() -> None:
     fake = FakeWinsound()
 

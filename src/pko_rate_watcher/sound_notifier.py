@@ -1,16 +1,12 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
 from typing import Any
 
 from pko_rate_watcher.config import LocalSoundConfig
-
-try:
-    import winsound as _winsound
-except ImportError:
-    _winsound = None
 
 
 @dataclass(frozen=True)
@@ -28,7 +24,7 @@ def play_local_sound(
     if not config.enabled:
         return SoundResult(False, "Local sound is disabled in config.toml.")
 
-    winsound = winsound_module if winsound_module is not None else _winsound
+    winsound = winsound_module if winsound_module is not None else _load_winsound()
     if winsound is None:
         return SoundResult(False, "Local sound is available only on Windows.")
 
@@ -81,3 +77,13 @@ def play_local_sound(
         return SoundResult(False, f"Unknown local sound mode: {config.mode}")
     except RuntimeError as exc:
         return SoundResult(False, f"Local sound failed: {exc}")
+
+
+def _load_winsound() -> Any | None:
+    if not sys.platform.startswith("win"):
+        return None
+    try:
+        import winsound
+    except ImportError:
+        return None
+    return winsound

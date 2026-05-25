@@ -8,7 +8,7 @@ Program:
 - nie używa oficjalnego API banku ani logowania do banku,
 - nie wykonuje żadnych transakcji,
 - działa jako jedno sprawdzenie na jedno uruchomienie,
-- nadaje się do uruchamiania cyklicznie przez Harmonogram zadań Windows.
+- nadaje się do uruchamiania cyklicznie przez Harmonogram zadań Windows albo systemd timer na Ubuntu.
 
 Źródło kursu: publiczna strona PKO BP:
 `https://www.pkobp.pl/klient-indywidualny/aplikacja-iko-ipko/kantor-internetowy-mobilny-24h`
@@ -201,6 +201,44 @@ Tryb `aurora` jest domyślnie rekomendowany do alertów: odtwarza łagodniejszą
 
 Lokalny dźwięk jest odtwarzany tylko przy realnym alercie. Nie jest odtwarzany przy `--dry-run`, przy niespełnionym warunku ani wtedy, gdy alert blokuje logika antyspamowa.
 
+## Windows vs VPS configuration
+
+Ten projekt jest jeden, ale wspiera dwa środowiska:
+
+- Windows local mode: lokalny komputer Windows, Harmonogram zadań, opcjonalny lokalny dźwięk przez `winsound`.
+- VPS Linux mode: Ubuntu 24.04 na serwerze, systemd timer, Telegram bez lokalnego dźwięku.
+
+Na Windows możesz używać:
+
+```toml
+[local_sound]
+enabled = true
+mode = "aurora"
+frequency = 1000
+duration_ms = 700
+wav_file = ""
+```
+
+Na VPS ustaw:
+
+```toml
+[local_sound]
+enabled = false
+mode = "message_beep"
+frequency = 1000
+duration_ms = 700
+wav_file = ""
+```
+
+Na Linuxie moduł dźwięku nie importuje `winsound`, jeśli dźwięk jest wyłączony. Jeśli przez pomyłkę włączysz `local_sound.enabled = true` na Linuxie, aplikacja nie powinna się wywrócić; wypisze i zaloguje, że lokalny dźwięk jest dostępny tylko na Windows.
+
+Ścieżki `logs/rate_watcher.log` i `state/state.json` są relatywne względem katalogu roboczego procesu. Dlatego:
+
+- w Windows Task Scheduler ustaw `Start in` na katalog projektu,
+- w systemd service ustawione jest `WorkingDirectory=/opt/projects/pko-kantor-monitor`.
+
+Plik `.env` działa w obu środowiskach i powinien znajdować się w katalogu projektu. Nie commituj `.env`.
+
 Typowe ustawienia:
 
 ```toml
@@ -295,6 +333,94 @@ Program nie działa w tle jako pętla. Monitorowanie zatrzymasz przez wyłączen
 2. Znajdź zadanie `PKO USD Rate Watcher`.
 3. Kliknij prawym przyciskiem.
 4. Wybierz `Wyłącz`.
+
+## 14. VPS Linux mode: Ubuntu 24.04 + systemd
+
+Docelowe założenia:
+
+- serwer: Hetzner CX23 albo podobny VPS,
+- system: Ubuntu 24.04 LTS,
+- użytkownik: `deploy`,
+- katalog projektu: `/opt/projects/pko-kantor-monitor`,
+- uruchamianie: systemd timer co 5 minut.
+
+Przykładowe pliki systemd są w:
+
+```text
+deployment/systemd/pko-rate-watcher.service
+deployment/systemd/pko-rate-watcher.timer
+```
+
+Przykładowa instalacja na VPS:
+
+```bash
+sudo apt update
+sudo apt install -y python3.12 python3.12-venv git
+sudo mkdir -p /opt/projects
+sudo chown deploy:deploy /opt/projects
+cd /opt/projects
+git clone https://github.com/d-kudin/PKO-Kantor-Monitor.git pko-kantor-monitor
+cd /opt/projects/pko-kantor-monitor
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+cp config.example.toml config.toml
+```
+
+Uzupełnij `.env`:
+
+```text
+TELEGRAM_BOT_TOKEN=twoj_token
+TELEGRAM_CHAT_ID=twoj_chat_id
+```
+
+W `config.toml` na VPS ustaw:
+
+```toml
+[watcher]
+dry_run = false
+
+[local_sound]
+enabled = false
+```
+
+Test ręczny na VPS:
+
+```bash
+cd /opt/projects/pko-kantor-monitor
+.venv/bin/python -m pko_rate_watcher.main --dry-run
+.venv/bin/python -m pko_rate_watcher.main --test-telegram
+```
+
+Instalacja systemd timer:
+
+```bash
+sudo cp deployment/systemd/pko-rate-watcher.service /etc/systemd/system/pko-rate-watcher.service
+sudo cp deployment/systemd/pko-rate-watcher.timer /etc/systemd/system/pko-rate-watcher.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now pko-rate-watcher.timer
+```
+
+Sprawdzenie działania:
+
+```bash
+systemctl status pko-rate-watcher.timer
+systemctl list-timers pko-rate-watcher.timer
+journalctl -u pko-rate-watcher.service -n 100 --no-pager
+```
+
+Jednorazowe ręczne uruchomienie przez systemd:
+
+```bash
+sudo systemctl start pko-rate-watcher.service
+journalctl -u pko-rate-watcher.service -n 50 --no-pager
+```
+
+Zatrzymanie monitorowania na VPS:
+
+```bash
+sudo systemctl disable --now pko-rate-watcher.timer
+```
 
 ## Bezpieczeństwo
 

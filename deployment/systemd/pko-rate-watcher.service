@@ -1,0 +1,12 @@
+[Unit]
+Description=PKO Kantor Monitor rate check
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/projects/pko-kantor-monitor
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/projects/pko-kantor-monitor/.venv/bin/python -m pko_rate_watcher.main
